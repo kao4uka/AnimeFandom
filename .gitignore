@@ -1,0 +1,36 @@
+# Python-specific
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+.cache/
+.pytest_cache/
+.tox/
+.coverage
+.mypy_cache/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.build
+.env.deploy
+
+# Python/Django-specific
+*.db
+media/
+db.sqlite3
+static/
+
+# Environment variables
+.env.
+.env.db
+.env.prod
+
+.idea/
+.DS_Store
+
+venv/
