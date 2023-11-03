@@ -49,7 +49,7 @@ class LogoutSerailiser(serializers.Serializer):
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reviews
-        fields = '__all__'
+        fields = ('title', 'datetime', 'user',)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

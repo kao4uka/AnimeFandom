@@ -7,7 +7,7 @@ urlpatterns = [
     path('<slug:url>/episode/<int:episode_number>/',
          views.AnimeEpisodeDetailAPIView.as_view(),
          name='get_anime_episode_detail'),
-    path('<int:anime_id>', views.AnimeDetailAPIView.as_view(), name='get_anime_detail'),
+    path('<int:anime_id>/', views.AnimeDetailAPIView.as_view(), name='get_anime_detail'),
     path('status/', views.AnimeStatusAPIView.as_view({'get': 'list'}), name="anime-status"),
     path('status/<int:id>/', views.AnimeStatusDetailAPIView.as_view(), name="anime-status"),
     path('favorites/', views.FavoriteListAPIView.as_view(), name='favorites-list'),

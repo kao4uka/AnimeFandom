@@ -2,12 +2,6 @@ from rest_framework import serializers
 from apps.anime.models import Genre, Anime, Tag, Episode
 
 
-# class SeasonSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Season
-#         fields = '__all__'
-
-
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
@@ -68,12 +62,6 @@ class AnimeListSerializer(serializers.ModelSerializer):
             'total_episodes',
             'total_seasons'
         )
-
-    # def get_total_seasons(self, obj):
-    #     return Episode.objects.filter(anime=obj).distinct('season').count()
-    #
-    # def get_total_episodes(self, obj):
-    #     return Episode.objects.filter(anime=obj).count()
 
 
 class EpisodeDetailSerializer(serializers.ModelSerializer):

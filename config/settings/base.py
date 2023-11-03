@@ -23,9 +23,8 @@ THIRD_PARTY_APPS = [
     'corsheaders',
     'debug_toolbar',
     'channels',
-    # 'django_cron'
-    # 'social_django'
-    # 'cachalot',
+    'social_django',
+    'cachalot',
     'rest_framework_simplejwt.token_blacklist',
 ]
 
@@ -53,16 +52,16 @@ INSTALLED_APPS = [
     *DJANGO_APPS,
 ]
 
-# AUTHENICATION_BACKENDS = (
-#     'django.contrib.auth.backends.ModelBackend',
-#     'social_core.backends.google.GoogleOAuth2',
-# )
+AUTHENICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'social_core.backends.google.GoogleOAuth2',
+)
 
 
 REST_FRAMEWORK = {
-    # "DEFAULT_AUTHENTICATION_CLASSES": (
-    #     #     "rest_framework_simplejwt.authentication.JWTAuthentication",
-    # ),
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        #     "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
@@ -193,11 +192,11 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = env("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 
-# SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '232715021533-gsotn7uot7i4altq2f3hlbfqbj075vhg.apps.googleusercontent.com'
-# SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
-# SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
-# SOCIAL_AUTH_URL_NAMESPACE = 'social'
-# SOCIAL_AUTH_JSONFIELD_ENABLED = True
-# SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/api/v1/anime/anime_list/'
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env('SOCIAL_AUTH_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env('SOCIAL_AUTH_SECRET')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
+SOCIAL_AUTH_URL_NAMESPACE = 'social'
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/api/v1/anime/anime_list/'
 
 LOGIN_URL = '/auth/login/'

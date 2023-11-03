@@ -195,7 +195,7 @@ class LogoutAPIView(generics.CreateAPIView):
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
-    queryset = models.User.objects.all()
+    queryset = User.objects.all()
     serializer_class = serializers.UserProfileSerializer
     permission_classes = (permissions.IsAuthenticated,)
 
@@ -209,15 +209,3 @@ class DeleteAccountView(generics.DestroyAPIView):
 
     def get_object(self):
         return self.request.user
-
-
-# class FriendRequestViewSet(viewsets.ModelViewSet):
-#     queryset = models.FriendRequest.objects.all()
-#     serializer_class = serializers.FriendRequestSerializer
-#
-#     def create(self, request):
-#         serializer = self.get_serializer(data=request.data)
-#         if serializer.is_valid():
-#             serializer.save(sender=request.user)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)

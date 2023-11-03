@@ -2,41 +2,41 @@ from rest_framework import generics, permissions, exceptions
 from rest_framework.response import Response
 from rest_framework import status
 
+from apps.friends.models import FriendRequest, FriendList
 from apps.users.models import User
-from apps.friends.serializers import *
-from apps.friends.models import *
+from apps.friends.serializers import (
+    FriendRequestSerializer,
+    FriendSerializer,
+    DeclineFriendRequestSerializer,
+    CancelFriendRequestSerializer
+
+)
+from apps.friends.services import (
+    cancel_friend_request,
+    add_friend,
+    remove_friend,
+    is_mutual_friend,
+    decline_friend_request,
+    accept_friend_request
+)
 
 
 class FriendListAPIView(generics.RetrieveAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = FriendSerializer
-    queryset = FriendList.objects.all()
 
     def get_object(self):
         user_id = self.kwargs.get("user_id")
-        print(self.kwargs.get('user_id'))
-        try:
-            this_user = User.objects.get(pk=user_id)
-            print(this_user)
-        except User.DoesNotExist:
-            raise exceptions.NotFound("Такого пользователя не существует!")
 
         try:
-            friend_list = FriendList.objects.get(user=this_user)
+            friend_list = FriendList.objects.select_related('user').get(user=user_id)
         except FriendList.DoesNotExist:
-            raise exceptions.NotFound(f"Не удалось найти список друзей для {this_user.username}")
+            raise exceptions.NotFound('Такого пользователя не существует.')
 
-        if self.request.user != this_user:
-            if not self.request.user in friend_list.friends.all():
-                raise exceptions.PermissionDenied("Вы должны быть друзьями, чтобы просмотреть список друзей!")
+        if self.request.user.id != user_id and not friend_list.friends.filter(pk=self.request.user.pk).exists():
+            raise exceptions.PermissionDenied("Вы должны быть друзьями, чтобы просмотреть список друзей!")
 
         return friend_list
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        friends = instance.friends.all()
-        serializer = self.get_serializer(friends, many=True)
-        return Response(serializer.data)
 
 
 class FriendRequestAPIView(generics.ListAPIView):
@@ -44,32 +44,34 @@ class FriendRequestAPIView(generics.ListAPIView):
     serializer_class = FriendRequestSerializer
 
     def get_queryset(self):
-        user_id = self.kwargs.get("user_id")
-        account = User.objects.get(pk=user_id)
-        if self.request.user != account:
+        user_id = self.kwargs.get('user_id')
+        if self.request.user.id != int(user_id):
             raise exceptions.PermissionDenied("Вы не можете простматривать запросы другого пользователя!")
-        return FriendRequest.objects.filter(receiver=account, is_active=True)
+        return FriendRequest.objects.filter(receiver=self.request.user, is_active=True)
 
 
 class SendFriendRequestAPIView(generics.CreateAPIView):
-    queryset = FriendRequest.objects.all()
     serializer_class = FriendRequestSerializer
     permission_classes = (permissions.IsAuthenticated,)
 
     def create(self, request, *args, **kwargs):
         user = request.user
-        user_id = request.data.get('receiver')
+        receiver_id = request.data.get('receiver')
+        friend_list = FriendList.objects.filter(user=user, friends__id=receiver_id).exists()
 
-        if user_id is None:
+        if receiver_id is None:
             return Response({'response': 'Поле "receiver" обязательно.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        receiver = User.objects.get(pk=user_id)
+        if friend_list:
+            return Response({'response': 'Этот пользователь уже в ваших друзьях.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        friend_request = FriendRequest.objects.filter(sender=user, receiver=receiver, is_active=True)
-        if friend_request.exists():
+        friend_request = FriendRequest.objects.filter(sender=user, receiver=receiver_id, is_active=True).exists()
+        print(friend_request)
+        if friend_request:
             return Response({'response': 'Вы уже отправили запрос в друзья.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data=request.data)
+        print(serializer)
         if serializer.is_valid(raise_exception=True):
             serializer.save(sender=user)
             return Response({'response': 'Запрос в друзья отправлен'}, status=status.HTTP_201_CREATED)
@@ -92,34 +94,11 @@ class AcceptFriendRequestAPIView(generics.UpdateAPIView):
                 {"response": "Этот запрос в друзья адресован другому пользователю."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if not friend_request.is_active:
+            return Response({'response': 'Этот запрос уже был обработан.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        friend_request.accept()
+        accept_friend_request(friend_request)
         return Response({"response": "Запрос в друзья был принят."}, status=status.HTTP_200_OK)
-
-
-class RemoveFriendAPIView(generics.DestroyAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = CancelFriendRequestSerializer
-    queryset = FriendList.objects.all()
-    lookup_field = 'id'
-
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        user = self.request.user
-
-        try:
-            remove = serializer.validated_data.get('receiver')
-            friend_list = FriendList.objects.get(user=user)
-            friend_list.unfriend_user(remove)
-            return Response({"response": "Пользователь успешно удален из друзей."}, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            return Response({"response": "Пользователь не найден."}, status=status.HTTP_404_NOT_FOUND)
-        except FriendList.DoesNotExist:
-            return Response({"response": "Список друзей не найден для пользователя."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"response": f"Что-то пошло не так: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeclineFriendRequestAPIView(generics.GenericAPIView):
@@ -139,12 +118,36 @@ class DeclineFriendRequestAPIView(generics.GenericAPIView):
                 return Response({"response": "Вы не можете отменить чужой запрос в друзья."},
                                 status=status.HTTP_403_FORBIDDEN)
 
-            friend_request.decline()
+            friend_request.decline_friend_request()
             return Response({"response": "Запрос в друзья отклонен."}, status=status.HTTP_200_OK)
         except FriendRequest.DoesNotExist:
-            return Response({"response": "Friend request not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"response": "Запрос в друзья не найден."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"response": f"Что-то пошло не так: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RemoveFriendAPIView(generics.DestroyAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = CancelFriendRequestSerializer
+    lookup_field = 'id'
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = self.request.user
+        remove_user = serializer.validated_data.get('receiver')
+
+        try:
+            friend_list = FriendList.objects.select_related('user').prefetch_related('friends').get(user=user)
+        except FriendList.DoesNotExist:
+            return Response({'response': 'Список друзей не найден для пользователя.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if is_mutual_friend(friend_list.friends.all(), remove_user):
+            remove_friend(friend_list, remove_user)
+            return Response({'response': "Пользователь успешно удален из друзей."}, status=status.HTTP_200_OK)
+
+        return Response({'response': 'Пользователь не является вашим другом.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CancelFriendRequestAPIView(generics.GenericAPIView):
@@ -166,23 +169,6 @@ class CancelFriendRequestAPIView(generics.GenericAPIView):
             return Response({'response': 'Нет активных запросов в друзья.'}, status=status.HTTP_404_NOT_FOUND)
 
         for request_obj in friend_request:
-            request_obj.cancel()
+            request_obj.cancel_friend_request()
 
         return Response({'response': 'Запрос в друзья отклонен.'}, status=status.HTTP_200_OK)
-        # try:
-        #     receiver = serializer.validated_data.get('receiver')
-        #     friend_requests = FriendRequest.objects.filter(sender=user, receiver=receiver, is_active=True)
-        #
-        #     if not friend_requests.exists():
-        #         return Response({"response": "У вас нет запросов в друзья."},
-        #                         status=status.HTTP_404_NOT_FOUND)
-        #
-        #     # Cancel all active friend requests (in case there are multiple, although there shouldn't be)
-        #     for request_obj in friend_requests:
-        #         request_obj.cancel()
-        #
-        #     return Response({"response": "Запрос в друзья отклонен."}, status=status.HTTP_200_OK)
-        # except User.DoesNotExist:
-        #     return Response({"response": "Пользователь не найден."}, status=status.HTTP_404_NOT_FOUND)
-        # except Exception as e:
-        #     return Response({"response": f"Что-то пошло не так: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)

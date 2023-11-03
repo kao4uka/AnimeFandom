@@ -1,12 +1,10 @@
 from django_filters import rest_framework as filters
 from rest_framework.exceptions import NotFound
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAdminUser
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework import generics, views, status
-from rest_framework import viewsets
+from rest_framework import generics, views, status, viewsets
 
 
 from apps.anime.services import (
@@ -33,7 +31,7 @@ class LargeResultsSetPagination(PageNumberPagination):
 
 
 class FavoriteListAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, format=None):
         user = request.user
@@ -54,7 +52,7 @@ class FavoriteListAPIView(views.APIView):
 
 
 class AddToFavoritesAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, anime_id, format=None):
         user = request.user
@@ -70,7 +68,7 @@ class AddToFavoritesAPIView(views.APIView):
 
 
 class RemoveFromFavoritesAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, anime_id, format=None):
         user = request.user
@@ -81,16 +79,16 @@ class RemoveFromFavoritesAPIView(views.APIView):
 class AnimeStatusAPIView(viewsets.ModelViewSet):
     queryset = get_anime_with_status(constants.Status.NO_PUBLISH)
     serializer_class = AnimeSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = (permissions.IsAdminUser,)
     lookup_field = 'id'
     filter_backends = [SearchFilter]
-    search_fields = ('id', 'translated_title', 'release_date')
+    search_fields = ('id', 'translated_title', 'original_title', 'release_date')
 
 
 class AnimeStatusDetailAPIView(generics.RetrieveAPIView):
     queryset = get_anime_with_status(constants.Status.NO_PUBLISH)
     serializer_class = AnimeSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = (permissions.IsAdminUser,)
     lookup_field = 'id'
 
     def post(self, request, *args, **kwargs):
@@ -105,10 +103,9 @@ class AnimeDetailAPIView(views.APIView):
 
     def get(self, request, *args, **kwargs):
         anime_id = kwargs.get('anime_id')
-        # anime = get_object_or_404(Anime, id=anime_id)
 
-        anime = Anime.objects.prefetch_related('genre', 'tag').get(id=anime_id)
-        episodes = Episode.objects.filter(anime=anime).select_related('anime', 'season').defer('mp4')
+        anime = Anime.objects.get(id=anime_id)
+        episodes = Episode.objects.filter(anime=anime).select_related('season').defer('mp4')
 
         anime_serializer = AnimeSerializer(anime)
         episode_serializer = EpisodeSerializer(episodes, many=True)

@@ -1,7 +1,8 @@
 from django.core.cache import cache
 from django.db.models import Count
-from config.settings.base import CACHE_TIMEOUT
+from django.views.decorators.cache import cache_page
 
+from config.settings.base import CACHE_TIMEOUT
 from apps.anime.filters import ORDERING_MAP
 from apps.anime.models import Anime
 from apps.anime import constants
@@ -10,6 +11,8 @@ from apps.users.models import UserFavoriteAnime
 
 
 def get_favorite_anime(user):
+
+    
     cache_key = f'favorite_anime_{user.id}'
     cached_data = cache.get(cache_key)
 
@@ -19,7 +22,7 @@ def get_favorite_anime(user):
     favorites_anime = UserFavoriteAnime.objects.filter(
         user=user,
         anime__status=constants.Status.PUBLISHED
-    ).select_related('anime')
+    )
 
     anime_ids = [favorite.anime_id for favorite in favorites_anime]
     anime = Anime.objects.filter(pk__in=anime_ids).prefetch_related('genre', 'tag')
@@ -53,7 +56,7 @@ def add_anime_to_favorites(user, anime_id):
 
 
 def get_anime_with_status(status):
-    return Anime.objects.filter(status=status)
+    return Anime.objects.filter(status=status).prefetch_related('genre', 'tag')
 
 
 def change_anime_status_to_published(anime):
@@ -66,7 +69,14 @@ def get_main_anime():
 
 
 def get_status_anime():
-    return Anime.objects.filter(status=constants.Status.PUBLISHED).only('status')
+    cached_result = cache.get('status_anime_cached_key')
+    if cached_result is not None:
+        return cached_result
+    else:
+        result = Anime.objects.filter(status=constants.Status.PUBLISHED).only('status')
+
+        cache.set('status_anime_cached_key', result, CACHE_TIMEOUT)
+        return result
 
 
 def get_users_image(request):

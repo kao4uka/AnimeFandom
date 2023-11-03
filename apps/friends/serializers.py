@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from apps.friends.models import *   
+from apps.friends.models import FriendRequest, FriendList
+from apps.friends.services import is_mutual_friend
 
 
 class CancelFriendRequestSerializer(serializers.ModelSerializer):
@@ -24,7 +25,7 @@ class FriendSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         user_data = obj.user
         auth_user_friend_list = FriendList.objects.get(user=user)
-        return auth_user_friend_list.is_mutual_friend(obj)
+        return is_mutual_friend(auth_user_friend_list, obj)
 
 
 class FriendRequestSerializer(serializers.ModelSerializer):
